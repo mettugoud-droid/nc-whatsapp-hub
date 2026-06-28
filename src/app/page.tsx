@@ -11,14 +11,32 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate login - in production this calls the auth API
-    setTimeout(() => {
-      window.location.href = "/dashboard";
-    }, 1000);
+    setError("");
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        localStorage.setItem("user", JSON.stringify(data.data.user));
+        window.location.href = "/dashboard";
+      } else {
+        setError(data.error || "Invalid credentials");
+        setIsLoading(false);
+      }
+    } catch {
+      setError("Connection error. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -97,6 +115,11 @@ export default function LoginPage() {
                   Forgot password?
                 </a>
               </div>
+              {error && (
+                <p className="text-sm text-red-500 text-center bg-red-50 dark:bg-red-900/20 p-2 rounded-md">
+                  {error}
+                </p>
+              )}
               <Button
                 type="submit"
                 className="w-full"

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import {
   MessagesChart,
@@ -17,11 +18,43 @@ import {
   TrendingUp,
   IndianRupee,
 } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
+
+interface DashboardStats {
+  totalContacts: number;
+  totalOrders: number;
+  codOrders: number;
+  prepaidOrders: number;
+  totalCampaigns: number;
+  activeCampaigns: number;
+  messagesToday: number;
+  messagesDelivered: number;
+  messagesFailed: number;
+  messagesPending: number;
+  deliveryRate: number;
+  totalTemplates: number;
+  totalRevenue: number;
+  codConversionRate: number;
+}
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/dashboard/stats")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setStats(data.data);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const s = stats;
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
@@ -29,20 +62,20 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid - Live Data */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Messages Sent Today"
-          value="1,284"
-          change="+12% from yesterday"
+          value={loading ? "..." : String(s?.messagesToday || 0)}
+          change={s ? `${s.deliveryRate}% delivery rate` : ""}
           changeType="positive"
           icon={Send}
           delay={0}
         />
         <StatCard
           title="Campaigns Running"
-          value="5"
-          change="2 scheduled"
+          value={loading ? "..." : String(s?.activeCampaigns || 0)}
+          change={`${s?.totalCampaigns || 0} total`}
           changeType="neutral"
           icon={MessageSquare}
           iconColor="bg-brand-secondary/10 text-brand-secondary"
@@ -50,8 +83,8 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Delivery Rate"
-          value="96.2%"
-          change="+2.1% from last week"
+          value={loading ? "..." : `${s?.deliveryRate || 0}%`}
+          change={`${s?.messagesDelivered || 0} delivered`}
           changeType="positive"
           icon={CheckCircle2}
           iconColor="bg-green-100 text-green-600 dark:bg-green-900/30"
@@ -59,9 +92,9 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Failed Messages"
-          value="48"
-          change="-8% from yesterday"
-          changeType="positive"
+          value={loading ? "..." : String(s?.messagesFailed || 0)}
+          change={`${s?.messagesPending || 0} pending`}
+          changeType={s?.messagesFailed === 0 ? "positive" : "negative"}
           icon={XCircle}
           iconColor="bg-red-100 text-red-600 dark:bg-red-900/30"
           delay={0.3}
@@ -71,37 +104,32 @@ export default function DashboardPage() {
       {/* Second Row Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Pending Queue"
-          value="156"
-          change="Processing..."
-          changeType="neutral"
+          title="Total Contacts"
+          value={loading ? "..." : String(s?.totalContacts || 0)}
           icon={Clock}
           iconColor="bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30"
           delay={0.4}
         />
         <StatCard
-          title="Today's Responses"
-          value="312"
-          change="+23% engagement"
-          changeType="positive"
+          title="Total Orders"
+          value={loading ? "..." : String(s?.totalOrders || 0)}
+          change={`COD: ${s?.codOrders || 0} | Prepaid: ${s?.prepaidOrders || 0}`}
+          changeType="neutral"
           icon={MessageCircle}
           iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30"
           delay={0.5}
         />
         <StatCard
-          title="Conversions"
-          value="89"
-          change="+15% from last week"
+          title="COD to Prepaid %"
+          value={loading ? "..." : `${s?.codConversionRate || 0}%`}
           changeType="positive"
           icon={TrendingUp}
           iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30"
           delay={0.6}
         />
         <StatCard
-          title="Revenue Generated"
-          value="₹1,24,500"
-          change="+28% this month"
-          changeType="positive"
+          title="Total Revenue"
+          value={loading ? "..." : formatCurrency(s?.totalRevenue || 0)}
           icon={IndianRupee}
           iconColor="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30"
           delay={0.7}
