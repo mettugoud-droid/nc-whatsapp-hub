@@ -16,6 +16,9 @@ import { crmRouter } from "./routes/crm";
 import { aiRouter } from "./routes/ai-recommendations";
 import { reportsRouter } from "./routes/reports";
 import { integrationsRouter } from "./routes/integrations";
+import { inboxRouter } from "./routes/inbox";
+import { ticketsRouter } from "./routes/tickets";
+import { workflowsRouter } from "./routes/workflows";
 import { errorHandler } from "./middleware/error-handler";
 import { requestLogger } from "./middleware/request-logger";
 
@@ -51,6 +54,11 @@ app.use("/api/crm", crmRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/integrations", integrationsRouter);
+
+// Phase 3 Routes
+app.use("/api/inbox", inboxRouter);
+app.use("/api/tickets", ticketsRouter);
+app.use("/api/workflows", workflowsRouter);
 
 // Error handler
 app.use(errorHandler);
