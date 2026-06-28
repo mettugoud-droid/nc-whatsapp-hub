@@ -1,0 +1,402 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== AUTHENTICATION ====================
+
+enum UserRole {
+  ADMIN
+  MARKETING
+  SALES
+  CUSTOMER_SUPPORT
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          UserRole  @default(MARKETING)
+  avatar        String?
+  isActive      Boolean   @default(true)
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  campaigns     Campaign[]
+  messages      Message[]
+  auditLogs     AuditLog[]
+  templates     Template[]
+
+  @@map("users")
+}
+
+// ==================== CONTACTS ====================
+
+model Contact {
+  id            String    @id @default(cuid())
+  name          String
+  phone         String    @unique
+  email         String?
+  company       String?
+  tags          String[]
+  customFields  Json?
+  isActive      Boolean   @default(true)
+  source        String?   // CSV, Excel, Shopify, etc.
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  messages      Message[]
+  orders        Order[]
+  campaignContacts CampaignContact[]
+
+  @@index([phone])
+  @@index([name])
+  @@map("contacts")
+}
+
+// ==================== TEMPLATES ====================
+
+enum TemplateCategory {
+  COD_CONFIRMATION
+  ORDER_CONFIRMATION
+  SHIPPING_UPDATE
+  DELIVERED
+  REVIEW_REQUEST
+  PAYMENT_REMINDER
+  FESTIVAL_OFFERS
+  REORDER_REMINDER
+  ABANDONED_CART
+  COUPON_CAMPAIGN
+  COD_CONVERSION
+  PAYMENT_SUCCESS
+  CUSTOM
+}
+
+model Template {
+  id            String           @id @default(cuid())
+  name          String
+  category      TemplateCategory
+  content       String
+  variables     String[]         // e.g., ["customer_name", "order_id"]
+  isActive      Boolean          @default(true)
+  usageCount    Int              @default(0)
+  createdBy     String
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  user          User             @relation(fields: [createdBy], references: [id])
+  campaigns     Campaign[]
+  messages      Message[]
+
+  @@map("templates")
+}
+
+// ==================== CAMPAIGNS ====================
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  PAUSED
+  CANCELLED
+}
+
+enum CampaignType {
+  INDIVIDUAL
+  BULK
+  COD_CONVERSION
+  AUTOMATED
+}
+
+model Campaign {
+  id              String         @id @default(cuid())
+  name            String
+  type            CampaignType
+  status          CampaignStatus @default(DRAFT)
+  templateId      String?
+  message         String?
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  repeatSchedule  String?        // cron expression for repeat
+  totalRecipients Int            @default(0)
+  sent            Int            @default(0)
+  delivered       Int            @default(0)
+  failed          Int            @default(0)
+  pending         Int            @default(0)
+  read            Int            @default(0)
+  responded       Int            @default(0)
+  conversions     Int            @default(0)
+  revenue         Float          @default(0)
+  createdBy       String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  user            User           @relation(fields: [createdBy], references: [id])
+  template        Template?      @relation(fields: [templateId], references: [id])
+  messages        Message[]
+  contacts        CampaignContact[]
+
+  @@index([status])
+  @@index([type])
+  @@map("campaigns")
+}
+
+model CampaignContact {
+  id         String   @id @default(cuid())
+  campaignId String
+  contactId  String
+  status     String   @default("pending") // pending, sent, delivered, failed
+  sentAt     DateTime?
+  deliveredAt DateTime?
+
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, contactId])
+  @@map("campaign_contacts")
+}
+
+// ==================== MESSAGES ====================
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  EXPIRED
+}
+
+enum MessageDirection {
+  OUTBOUND
+  INBOUND
+}
+
+model Message {
+  id            String           @id @default(cuid())
+  contactId     String
+  campaignId    String?
+  templateId    String?
+  direction     MessageDirection  @default(OUTBOUND)
+  content       String
+  status        MessageStatus    @default(QUEUED)
+  whatsappMsgId String?
+  errorMessage  String?
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  readAt        DateTime?
+  createdBy     String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  contact       Contact          @relation(fields: [contactId], references: [id])
+  campaign      Campaign?        @relation(fields: [campaignId], references: [id])
+  template      Template?        @relation(fields: [templateId], references: [id])
+  user          User?            @relation(fields: [createdBy], references: [id])
+
+  @@index([contactId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// ==================== ORDERS ====================
+
+enum PaymentMode {
+  COD
+  PREPAID
+  PARTIAL_COD
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+model Order {
+  id              String       @id @default(cuid())
+  orderId         String       @unique // External order ID
+  contactId       String
+  product         String
+  amount          Float
+  discount        Float        @default(0)
+  finalAmount     Float
+  paymentMode     PaymentMode
+  status          OrderStatus  @default(PENDING)
+  source          String?      // Shopify, WooCommerce, etc.
+  trackingNumber  String?
+  trackingLink    String?
+  couponCode      String?
+  notes           String?
+  orderDate       DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  contact         Contact      @relation(fields: [contactId], references: [id])
+  codConversion   CodConversion?
+  payments        Payment[]
+
+  @@index([orderId])
+  @@index([paymentMode])
+  @@index([status])
+  @@map("orders")
+}
+
+// ==================== COD CONVERSION ====================
+
+enum ConversionStatus {
+  PENDING
+  LINK_SENT
+  LINK_VIEWED
+  PAYMENT_PENDING
+  PAYMENT_SUCCESSFUL
+  PAYMENT_FAILED
+  LINK_EXPIRED
+  CANCELLED
+}
+
+model CodConversion {
+  id                String           @id @default(cuid())
+  orderId           String           @unique
+  originalAmount    Float
+  discountPercent   Float
+  discountAmount    Float
+  finalAmount       Float
+  paymentLinkUrl    String?
+  paymentLinkId     String?          // Razorpay Payment Link ID
+  status            ConversionStatus @default(PENDING)
+  remindersSent     Int              @default(0)
+  nextReminderAt    DateTime?
+  linkExpiresAt     DateTime?
+  convertedAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  order             Order            @relation(fields: [orderId], references: [id])
+  reminders         ConversionReminder[]
+
+  @@index([status])
+  @@map("cod_conversions")
+}
+
+model ConversionReminder {
+  id              String        @id @default(cuid())
+  conversionId    String
+  reminderNumber  Int           // 1, 2, 3
+  templateUsed    String?
+  scheduledAt     DateTime
+  sentAt          DateTime?
+  status          String        @default("scheduled") // scheduled, sent, cancelled
+  createdAt       DateTime      @default(now())
+
+  conversion      CodConversion @relation(fields: [conversionId], references: [id], onDelete: Cascade)
+
+  @@map("conversion_reminders")
+}
+
+// ==================== PAYMENTS ====================
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+  EXPIRED
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String
+  provider          String        @default("razorpay") // razorpay, cashfree, etc.
+  providerPaymentId String?       // External payment ID
+  providerLinkId    String?       // Payment link ID
+  amount            Float
+  currency          String        @default("INR")
+  status            PaymentStatus @default(CREATED)
+  paymentMethod     String?       // upi, card, netbanking, etc.
+  paidAt            DateTime?
+  failureReason     String?
+  webhookPayload    Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  order             Order         @relation(fields: [orderId], references: [id])
+
+  @@index([providerPaymentId])
+  @@index([status])
+  @@map("payments")
+}
+
+// ==================== SETTINGS ====================
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   // JSON encoded value
+  category  String   // payment, whatsapp, general, conversion
+  encrypted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@map("settings")
+}
+
+// ==================== AUDIT LOG ====================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ==================== ANALYTICS ====================
+
+model DailyAnalytics {
+  id              String   @id @default(cuid())
+  date            DateTime @unique
+  messagesSent    Int      @default(0)
+  messagesDelivered Int    @default(0)
+  messagesFailed  Int      @default(0)
+  messagesRead    Int      @default(0)
+  responses       Int      @default(0)
+  campaigns       Int      @default(0)
+  conversions     Int      @default(0)
+  revenue         Float    @default(0)
+  codOrders       Int      @default(0)
+  prepaidOrders   Int      @default(0)
+  codConverted    Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("daily_analytics")
+}
