@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 
-const templates = [
+const staticTemplates = [
   {
     id: "1",
     name: "COD Confirmation",
@@ -139,6 +139,40 @@ function getCategoryColor(category: string): string {
 export default function TemplatesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [templates, setTemplates] = useState(staticTemplates);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newCategory, setNewCategory] = useState("CUSTOM");
+  const [newContent, setNewContent] = useState("");
+  const [formMsg, setFormMsg] = useState("");
+
+  // Fetch templates from API on mount
+  useEffect(() => {
+    fetch("/api/templates").then(r => r.json()).then(data => {
+      if (data.success && data.data.templates.length > 0) setTemplates(data.data.templates);
+    }).catch(() => {});
+  }, []);
+
+  const handleCreateTemplate = async () => {
+    if (!newName || !newContent) { setFormMsg("Name and content required"); return; }
+    setCreating(true);
+    setFormMsg("");
+    try {
+      const res = await fetch("/api/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName, category: newCategory, content: newContent }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTemplates(prev => [data.data, ...prev]);
+        setNewName(""); setNewContent(""); setNewCategory("CUSTOM");
+        setShowCreate(false);
+        setFormMsg("");
+      } else { setFormMsg(data.error || "Failed"); }
+    } catch { setFormMsg("Network error"); }
+    setCreating(false);
+  };
 
   const filtered = templates.filter(
     (t) =>
@@ -174,12 +208,12 @@ export default function TemplatesPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Template Name</label>
-                  <Input placeholder="e.g., Welcome Message" />
+                  <Input placeholder="e.g., Welcome Message" value={newName} onChange={(e) => setNewName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Category</label>
-                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                    <option>COD Confirmation</option>
+                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={newCategory} onChange={(e) => setNewCategory(e.target.value)}>
+                    <option value="COD_CONFIRMATION">COD Confirmation</option>
                     <option>Order Confirmation</option>
                     <option>Shipping Update</option>
                     <option>COD Conversion</option>
@@ -197,13 +231,18 @@ export default function TemplatesPage() {
                 <Textarea
                   placeholder="Hi {{customer_name}}, your order..."
                   className="min-h-[120px]"
+                  value={newContent}
+                  onChange={(e) => setNewContent(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
                   Use {`{{variable_name}}`} for personalization placeholders
                 </p>
               </div>
+              {formMsg && <p className="text-sm text-red-500">{formMsg}</p>}
               <div className="flex gap-2">
-                <Button>Save Template</Button>
+                <Button onClick={handleCreateTemplate} disabled={creating}>
+                  {creating ? "Saving..." : "Save Template"}
+                </Button>
                 <Button variant="outline" onClick={() => setShowCreate(false)}>
                   Cancel
                 </Button>
