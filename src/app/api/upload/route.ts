@@ -119,8 +119,8 @@ export async function POST(req: NextRequest) {
         try {
           const mapped = mapRow(records[i], mappings);
           const orderId = (mapped.orderId || "").trim();
-          const phone = cleanPhone(mapped.phone || "");
-          const amountStr = (mapped.amount || mapped.amountToCollect || "0").replace(/[₹,\s]/g, "");
+          const phone = cleanPhone(mapped.phone || mapped.customerNumber || mapped.customerMobile || "");
+          const amountStr = (mapped.amount || mapped.amountToCollect || mapped.finalSellingPrice || "0").replace(/[₹,\s]/g, "");
           const amount = parseFloat(amountStr);
 
           // Validate required fields (check actual value, not column name)
@@ -130,9 +130,8 @@ export async function POST(req: NextRequest) {
             continue;
           }
           if (!phone) {
-            failed++;
-            validationErrors.push({ row: i + 2, field: "phone", detectedColumn: getMappedHeader(mappings, "phone"), reason: "Phone number is empty" });
-            continue;
+            // Phone empty — still import order without phone linkage
+            validationErrors.push({ row: i + 2, field: "phone", detectedColumn: getMappedHeader(mappings, "phone"), reason: "Phone number is empty (order still imported)" });
           }
           if (isNaN(amount) || amount <= 0) {
             failed++;
@@ -141,10 +140,19 @@ export async function POST(req: NextRequest) {
           }
 
           // Find or create contact
-          let contact = await prisma.contact.findUnique({ where: { phone } });
-          if (!contact) {
+          let contact: any = null;
+          if (phone) {
+            contact = await prisma.contact.findUnique({ where: { phone } });
+            if (!contact) {
+              contact = await prisma.contact.create({
+                data: { name: mapped.customerName || "Unknown", phone, source: mapped.orderSource || "Shopdeck" },
+              });
+            }
+          } else {
+            // No phone - create with placeholder phone
+            const placeholderPhone = `+91000${String(Date.now()).slice(-7)}${i}`;
             contact = await prisma.contact.create({
-              data: { name: mapped.customerName || "Unknown", phone, source: mapped.orderSource || "Shopdeck" },
+              data: { name: mapped.customerName || `Order-${orderId}`, phone: placeholderPhone, source: mapped.orderSource || "Shopdeck (no phone)" },
             });
           }
 

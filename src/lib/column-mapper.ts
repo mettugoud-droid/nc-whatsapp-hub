@@ -31,7 +31,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
   phone: [
     "customer number", "phone", "mobile", "phone number", "mobile number",
     "contact", "phone no", "cell", "customer mobile", "customer phone",
-    "contact number", "mobile no", "mob", "tel",
+    "contact number", "mobile no", "mob", "tel", "customer no",
+    "cust number", "cust mobile", "buyer mobile", "buyer phone",
   ],
   customerName: [
     "customer name", "name", "buyer name", "full name", "customer",
