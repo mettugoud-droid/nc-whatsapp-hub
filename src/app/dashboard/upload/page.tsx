@@ -15,6 +15,62 @@ import { autoMapColumns, detectProfile, applyProfile, getBuiltInProfiles,
 interface ParsedRow { [key: string]: string; }
 interface ValidationError { row: number; field: string; detectedColumn: string; reason: string; }
 
+/**
+ * Proper CSV parser that handles:
+ * - Quoted fields with commas inside: "123, MG Road, Mumbai"
+ * - Escaped quotes: "He said ""hello"""
+ * - Newlines inside quotes
+ * - Mixed quoted/unquoted fields
+ */
+function parseCSV(text: string): string[][] {
+  const rows: string[][] = [];
+  let current = "";
+  let inQuotes = false;
+  let row: string[] = [];
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i + 1];
+
+    if (inQuotes) {
+      if (ch === '"' && next === '"') {
+        current += '"';
+        i++; // skip escaped quote
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        current += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ',') {
+        row.push(current);
+        current = "";
+      } else if (ch === '\n' || (ch === '\r' && next === '\n')) {
+        row.push(current);
+        current = "";
+        if (row.some(cell => cell.trim() !== "")) rows.push(row);
+        row = [];
+        if (ch === '\r') i++; // skip \n after \r
+      } else if (ch === '\r') {
+        row.push(current);
+        current = "";
+        if (row.some(cell => cell.trim() !== "")) rows.push(row);
+        row = [];
+      } else {
+        current += ch;
+      }
+    }
+  }
+
+  // Last field/row
+  row.push(current);
+  if (row.some(cell => cell.trim() !== "")) rows.push(row);
+
+  return rows;
+}
+
 const INTERNAL_FIELDS = [
   "orderId", "phone", "customerName", "amount", "discount", "paymentMode",
   "orderStatus", "productName", "sku", "quantity", "awb", "trackingLink",
@@ -43,15 +99,15 @@ export default function UploadPage() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
-      const lines = text.split("\n").filter(l => l.trim());
-      if (lines.length < 2) { setError("File needs header + data rows"); return; }
-      const hdrs = lines[0].split(",").map(h => h.trim().replace(/"/g, ""));
+      const parsedRows = parseCSV(text);
+      if (parsedRows.length < 2) { setError("File needs header + data rows"); return; }
+      const hdrs = parsedRows[0].map(h => h.trim());
       setHeaders(hdrs);
       const parsed: ParsedRow[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(",").map(v => v.trim().replace(/"/g, ""));
+      for (let i = 1; i < parsedRows.length; i++) {
+        const values = parsedRows[i];
         const row: ParsedRow = {};
-        hdrs.forEach((h, idx) => { row[h] = values[idx] || ""; });
+        hdrs.forEach((h, idx) => { row[h] = (values[idx] || "").trim(); });
         parsed.push(row);
       }
       setRows(parsed);
