@@ -18,6 +18,7 @@ import {
   Zap,
 } from "lucide-react";
 
+// These are infographic TYPES (system templates), not dynamic data
 const infographicTemplates = [
   {
     id: "1",

@@ -11,6 +11,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+// These are report TYPES (system-defined), not dynamic data
 const reports = [
   {
     id: "1",

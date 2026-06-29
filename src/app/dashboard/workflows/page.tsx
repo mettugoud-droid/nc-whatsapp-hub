@@ -26,7 +26,7 @@ import {
   Package,
 } from "lucide-react";
 
-// Sample workflow data
+// System workflow templates (these are predefined automation templates)
 const workflows = [
   {
     id: "wf-1",

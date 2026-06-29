@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,123 +20,8 @@ import {
   Headphones,
   Target,
   BarChart3,
+  Loader2,
 } from "lucide-react";
-
-// Sample employee data
-const employees = [
-  {
-    id: "1",
-    name: "Priya Sharma",
-    role: "Admin",
-    avatar: "PS",
-    performanceScore: 95,
-    activeChats: 0,
-    conversationsHandled: 156,
-    ordersHandled: 89,
-    codConversions: 34,
-    avgResponseTime: "1.2 min",
-    conversionsToday: 5,
-    status: "online",
-  },
-  {
-    id: "2",
-    name: "Amit Kumar",
-    role: "Sales",
-    avatar: "AK",
-    performanceScore: 92,
-    activeChats: 8,
-    conversationsHandled: 234,
-    ordersHandled: 145,
-    codConversions: 67,
-    avgResponseTime: "2.5 min",
-    conversionsToday: 12,
-    status: "online",
-  },
-  {
-    id: "3",
-    name: "Neha Gupta",
-    role: "Marketing",
-    avatar: "NG",
-    performanceScore: 88,
-    activeChats: 3,
-    conversationsHandled: 178,
-    ordersHandled: 56,
-    codConversions: 28,
-    avgResponseTime: "3.1 min",
-    conversionsToday: 4,
-    status: "online",
-  },
-  {
-    id: "4",
-    name: "Vikram Singh",
-    role: "Support",
-    avatar: "VS",
-    performanceScore: 85,
-    activeChats: 12,
-    conversationsHandled: 312,
-    ordersHandled: 42,
-    codConversions: 15,
-    avgResponseTime: "1.8 min",
-    conversionsToday: 3,
-    status: "busy",
-  },
-  {
-    id: "5",
-    name: "Anita Reddy",
-    role: "Operations",
-    avatar: "AR",
-    performanceScore: 90,
-    activeChats: 5,
-    conversationsHandled: 198,
-    ordersHandled: 167,
-    codConversions: 45,
-    avgResponseTime: "2.0 min",
-    conversionsToday: 8,
-    status: "online",
-  },
-  {
-    id: "6",
-    name: "Rajesh Nair",
-    role: "Sales",
-    avatar: "RN",
-    performanceScore: 78,
-    activeChats: 6,
-    conversationsHandled: 145,
-    ordersHandled: 98,
-    codConversions: 38,
-    avgResponseTime: "3.5 min",
-    conversionsToday: 6,
-    status: "offline",
-  },
-  {
-    id: "7",
-    name: "Kavya Menon",
-    role: "Support",
-    avatar: "KM",
-    performanceScore: 82,
-    activeChats: 9,
-    conversationsHandled: 267,
-    ordersHandled: 35,
-    codConversions: 12,
-    avgResponseTime: "2.2 min",
-    conversionsToday: 2,
-    status: "online",
-  },
-  {
-    id: "8",
-    name: "Suresh Patel",
-    role: "Operations",
-    avatar: "SP",
-    performanceScore: 87,
-    activeChats: 4,
-    conversationsHandled: 189,
-    ordersHandled: 134,
-    codConversions: 52,
-    avgResponseTime: "2.8 min",
-    conversionsToday: 7,
-    status: "busy",
-  },
-];
 
 const roleColors: Record<string, string> = {
   Admin: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
@@ -152,12 +38,58 @@ const statusIndicator: Record<string, string> = {
 };
 
 export default function EmployeesPage() {
-  const totalConversations = employees.reduce((acc, e) => acc + e.conversationsHandled, 0);
-  const totalOrders = employees.reduce((acc, e) => acc + e.ordersHandled, 0);
-  const totalCODConversions = employees.reduce((acc, e) => acc + e.codConversions, 0);
-  const avgResponseTime = (
-    employees.reduce((acc, e) => acc + parseFloat(e.avgResponseTime), 0) / employees.length
-  ).toFixed(1);
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/employees")
+      .then((res) => res.json())
+      .then((json) => setData(json))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
+
+  const employees: any[] = data?.employees || [];
+  const stats = data?.stats || {};
+
+  const totalConversations = employees.reduce((acc: number, e: any) => acc + (e.conversationsHandled || 0), 0);
+  const totalOrders = employees.reduce((acc: number, e: any) => acc + (e.ordersHandled || 0), 0);
+  const totalCODConversions = employees.reduce((acc: number, e: any) => acc + (e.codConversions || 0), 0);
+  const avgResponseTime = employees.length > 0
+    ? (employees.reduce((acc: number, e: any) => acc + parseFloat(e.avgResponseTime || "0"), 0) / employees.length).toFixed(1)
+    : "0";
+
+  if (employees.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Employee Dashboard</h1>
+            <p className="text-muted-foreground">Monitor team performance and productivity</p>
+          </div>
+          <Button><Users className="h-4 w-4 mr-2" /> Add Employee</Button>
+        </div>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="h-16 w-16 rounded-2xl bg-brand-primary/10 flex items-center justify-center mb-4">
+            <Users className="h-8 w-8 text-brand-primary" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">No employees added yet</h3>
+          <p className="text-sm text-muted-foreground max-w-md">
+            Add team members to track their performance, active chats, and COD conversions.
+          </p>
+          <Button className="mt-4"><Users className="h-4 w-4 mr-2" /> Add First Employee</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -182,10 +114,6 @@ export default function EmployeesPage() {
                 <div className="h-12 w-12 rounded-xl bg-brand-primary/10 flex items-center justify-center">
                   <MessageSquare className="h-6 w-6 text-brand-primary" />
                 </div>
-                <div className="flex items-center gap-1 text-green-600 text-sm">
-                  <ArrowUpRight className="h-4 w-4" />
-                  <span>+18%</span>
-                </div>
               </div>
               <p className="text-2xl font-bold mt-3">{totalConversations.toLocaleString()}</p>
               <p className="text-sm text-muted-foreground">Assigned Conversations</p>
@@ -199,10 +127,6 @@ export default function EmployeesPage() {
               <div className="flex items-center justify-between">
                 <div className="h-12 w-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                   <ShoppingCart className="h-6 w-6 text-blue-600" />
-                </div>
-                <div className="flex items-center gap-1 text-green-600 text-sm">
-                  <ArrowUpRight className="h-4 w-4" />
-                  <span>+12%</span>
                 </div>
               </div>
               <p className="text-2xl font-bold mt-3">{totalOrders.toLocaleString()}</p>
@@ -218,10 +142,6 @@ export default function EmployeesPage() {
                 <div className="h-12 w-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                   <Target className="h-6 w-6 text-emerald-600" />
                 </div>
-                <div className="flex items-center gap-1 text-green-600 text-sm">
-                  <ArrowUpRight className="h-4 w-4" />
-                  <span>+24%</span>
-                </div>
               </div>
               <p className="text-2xl font-bold mt-3">{totalCODConversions}</p>
               <p className="text-sm text-muted-foreground">COD Conversions</p>
@@ -236,10 +156,6 @@ export default function EmployeesPage() {
                 <div className="h-12 w-12 rounded-xl bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
                   <Clock className="h-6 w-6 text-yellow-600" />
                 </div>
-                <div className="flex items-center gap-1 text-red-500 text-sm">
-                  <ArrowDownRight className="h-4 w-4" />
-                  <span>-8%</span>
-                </div>
               </div>
               <p className="text-2xl font-bold mt-3">{avgResponseTime} min</p>
               <p className="text-sm text-muted-foreground">Avg Response Time</p>
@@ -249,11 +165,7 @@ export default function EmployeesPage() {
       </div>
 
       {/* Employee List Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -279,7 +191,7 @@ export default function EmployeesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {employees.map((employee, index) => (
+                  {employees.map((employee: any, index: number) => (
                     <motion.tr
                       key={employee.id}
                       initial={{ opacity: 0, x: -10 }}
@@ -292,60 +204,43 @@ export default function EmployeesPage() {
                           <div className="relative">
                             <div className="h-9 w-9 rounded-full bg-brand-primary/10 flex items-center justify-center">
                               <span className="text-xs font-bold text-brand-primary">
-                                {employee.avatar}
+                                {employee.avatar || employee.name?.split(" ").map((n: string) => n[0]).join("") || "?"}
                               </span>
                             </div>
-                            <div
-                              className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${
-                                statusIndicator[employee.status]
-                              }`}
-                            />
+                            <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${statusIndicator[employee.status] || "bg-gray-400"}`} />
                           </div>
                           <div>
                             <p className="text-sm font-medium">{employee.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {employee.conversationsHandled} conversations
-                            </p>
+                            <p className="text-xs text-muted-foreground">{employee.conversationsHandled || 0} conversations</p>
                           </div>
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full font-medium ${
-                            roleColors[employee.role]
-                          }`}
-                        >
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${roleColors[employee.role] || "bg-gray-100 text-gray-800"}`}>
                           {employee.role}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <div className="w-16 h-2 rounded-full bg-accent overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-brand-primary transition-all"
-                              style={{ width: `${employee.performanceScore}%` }}
-                            />
+                            <div className="h-full rounded-full bg-brand-primary transition-all" style={{ width: `${employee.performanceScore || 0}%` }} />
                           </div>
-                          <span className="text-sm font-semibold">{employee.performanceScore}%</span>
+                          <span className="text-sm font-semibold">{employee.performanceScore || 0}%</span>
                         </div>
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <span className="text-sm font-medium">{employee.activeChats}</span>
+                        <span className="text-sm font-medium">{employee.activeChats || 0}</span>
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <span className="text-sm font-bold text-brand-primary">
-                          {employee.conversionsToday}
-                        </span>
+                        <span className="text-sm font-bold text-brand-primary">{employee.conversionsToday || 0}</span>
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <span className="text-sm">{employee.avgResponseTime}</span>
+                        <span className="text-sm">{employee.avgResponseTime || "—"}</span>
                       </td>
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
-                          <div className={`h-2 w-2 rounded-full ${statusIndicator[employee.status]}`} />
-                          <span className="text-xs capitalize text-muted-foreground">
-                            {employee.status}
-                          </span>
+                          <div className={`h-2 w-2 rounded-full ${statusIndicator[employee.status] || "bg-gray-400"}`} />
+                          <span className="text-xs capitalize text-muted-foreground">{employee.status || "offline"}</span>
                         </div>
                       </td>
                     </motion.tr>

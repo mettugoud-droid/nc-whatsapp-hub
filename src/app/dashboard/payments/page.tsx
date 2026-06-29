@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,15 +15,8 @@ import {
   Link2,
   Settings,
   Shield,
+  Loader2,
 } from "lucide-react";
-
-const payments = [
-  { id: "1", orderId: "NC-2024-1235", customer: "Priya Gupta", amount: 854, method: "UPI", status: "captured", provider: "Razorpay", paidAt: "2024-10-20 08:45" },
-  { id: "2", orderId: "NC-2024-1230", customer: "Deepika Nair", amount: 2374, method: "Card", status: "captured", provider: "Razorpay", paidAt: "2024-10-20 07:30" },
-  { id: "3", orderId: "NC-2024-1228", customer: "Suresh Kumar", amount: 664, method: "NetBanking", status: "failed", provider: "Razorpay", paidAt: null },
-  { id: "4", orderId: "NC-2024-1238", customer: "Vikram Reddy", amount: 664, method: null, status: "pending", provider: "Razorpay", paidAt: null },
-  { id: "5", orderId: "NC-2024-1225", customer: "Anita Verma", amount: 1519, method: "UPI", status: "captured", provider: "Razorpay", paidAt: "2024-10-19 16:20" },
-];
 
 function getPaymentStatusBadge(status: string) {
   switch (status) {
@@ -42,6 +36,28 @@ function getPaymentStatusBadge(status: string) {
 }
 
 export default function PaymentsPage() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/payments")
+      .then((res) => res.json())
+      .then((json) => setData(json))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
+
+  const payments: any[] = data?.payments || [];
+  const stats = data?.stats || {};
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -61,16 +77,16 @@ export default function PaymentsPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Collections"
-          value="₹4,85,200"
-          change="+₹42,500 today"
+          value={stats.totalCollections || "₹0"}
+          change={stats.collectionsToday || undefined}
           changeType="positive"
           icon={IndianRupee}
           delay={0}
         />
         <StatCard
           title="Successful Payments"
-          value="234"
-          change="92% success rate"
+          value={stats.successfulPayments?.toString() || "0"}
+          change={stats.successRate || undefined}
           changeType="positive"
           icon={CheckCircle2}
           iconColor="bg-green-100 text-green-600 dark:bg-green-900/30"
@@ -78,8 +94,8 @@ export default function PaymentsPage() {
         />
         <StatCard
           title="Failed Payments"
-          value="18"
-          change="-5 from last week"
+          value={stats.failedPayments?.toString() || "0"}
+          change={stats.failedChange || undefined}
           changeType="positive"
           icon={XCircle}
           iconColor="bg-red-100 text-red-600 dark:bg-red-900/30"
@@ -87,8 +103,8 @@ export default function PaymentsPage() {
         />
         <StatCard
           title="Active Payment Links"
-          value="45"
-          change="12 expiring today"
+          value={stats.activeLinks?.toString() || "0"}
+          change={stats.expiringToday || undefined}
           changeType="neutral"
           icon={Link2}
           iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30"
@@ -104,57 +120,42 @@ export default function PaymentsPage() {
               <CardTitle className="text-base">Recent Transactions</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-accent/30">
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">
-                        Order
-                      </th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">
-                        Customer
-                      </th>
-                      <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase">
-                        Amount
-                      </th>
-                      <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase">
-                        Method
-                      </th>
-                      <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase">
-                        Status
-                      </th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">
-                        Paid At
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {payments.map((payment) => (
-                      <tr
-                        key={payment.id}
-                        className="border-b hover:bg-accent/20 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-sm font-mono">
-                          {payment.orderId}
-                        </td>
-                        <td className="px-4 py-3 text-sm">{payment.customer}</td>
-                        <td className="px-4 py-3 text-sm text-right font-bold">
-                          ₹{payment.amount}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center">
-                          {payment.method || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {getPaymentStatusBadge(payment.status)}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground">
-                          {payment.paidAt || "—"}
-                        </td>
+              {payments.length === 0 ? (
+                <div className="py-12 text-center">
+                  <CreditCard className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold mb-1">No transactions yet</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Payments will appear here once customers start paying via payment links.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b bg-accent/30">
+                        <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Order</th>
+                        <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Customer</th>
+                        <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Amount</th>
+                        <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Method</th>
+                        <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Status</th>
+                        <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Paid At</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {payments.map((payment: any) => (
+                        <tr key={payment.id} className="border-b hover:bg-accent/20 transition-colors">
+                          <td className="px-4 py-3 text-sm font-mono">{payment.orderId}</td>
+                          <td className="px-4 py-3 text-sm">{payment.customer}</td>
+                          <td className="px-4 py-3 text-sm text-right font-bold">₹{payment.amount}</td>
+                          <td className="px-4 py-3 text-sm text-center">{payment.method || "—"}</td>
+                          <td className="px-4 py-3 text-center">{getPaymentStatusBadge(payment.status)}</td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">{payment.paidAt || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -181,9 +182,7 @@ export default function PaymentsPage() {
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Mode</span>
-                  <Badge variant="warning" className="text-[10px]">
-                    Sandbox
-                  </Badge>
+                  <Badge variant="warning" className="text-[10px]">Sandbox</Badge>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Key ID</span>
@@ -191,36 +190,23 @@ export default function PaymentsPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Webhook</span>
-                  <Badge variant="success" className="text-[10px]">
-                    Active
-                  </Badge>
+                  <Badge variant="success" className="text-[10px]">Active</Badge>
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase">
-                Supported Gateways
-              </p>
-              {["Razorpay", "Cashfree", "PhonePe", "PayU", "Stripe", "Paytm"].map(
-                (gw) => (
-                  <div
-                    key={gw}
-                    className="flex items-center justify-between p-2 rounded-md hover:bg-accent/50"
-                  >
-                    <span className="text-sm">{gw}</span>
-                    {gw === "Razorpay" ? (
-                      <Badge variant="success" className="text-[10px]">
-                        Active
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[10px]">
-                        Available
-                      </Badge>
-                    )}
-                  </div>
-                )
-              )}
+              <p className="text-xs font-medium text-muted-foreground uppercase">Supported Gateways</p>
+              {["Razorpay", "Cashfree", "PhonePe", "PayU", "Stripe", "Paytm"].map((gw) => (
+                <div key={gw} className="flex items-center justify-between p-2 rounded-md hover:bg-accent/50">
+                  <span className="text-sm">{gw}</span>
+                  {gw === "Razorpay" ? (
+                    <Badge variant="success" className="text-[10px]">Active</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px]">Available</Badge>
+                  )}
+                </div>
+              ))}
             </div>
 
             <Button variant="outline" className="w-full" size="sm">

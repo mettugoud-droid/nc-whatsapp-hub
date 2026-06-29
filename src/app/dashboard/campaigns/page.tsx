@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,90 +18,8 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Loader2,
 } from "lucide-react";
-
-const campaigns = [
-  {
-    id: "1",
-    name: "Festival Diwali Offer",
-    status: "running",
-    type: "BULK",
-    template: "Festival Offers",
-    totalRecipients: 1200,
-    sent: 980,
-    delivered: 950,
-    failed: 30,
-    pending: 220,
-    conversions: 125,
-    revenue: 45000,
-    scheduledAt: "2024-10-20 10:00",
-    startedAt: "2024-10-20 10:00",
-  },
-  {
-    id: "2",
-    name: "COD to Prepaid - Batch 12",
-    status: "running",
-    type: "COD_CONVERSION",
-    template: "5% Discount Offer",
-    totalRecipients: 350,
-    sent: 350,
-    delivered: 340,
-    failed: 10,
-    pending: 0,
-    conversions: 89,
-    revenue: 62000,
-    scheduledAt: "2024-10-19 09:00",
-    startedAt: "2024-10-19 09:00",
-  },
-  {
-    id: "3",
-    name: "Order Review Request",
-    status: "completed",
-    type: "BULK",
-    template: "Review Request",
-    totalRecipients: 450,
-    sent: 450,
-    delivered: 440,
-    failed: 10,
-    pending: 0,
-    conversions: 125,
-    revenue: 0,
-    scheduledAt: "2024-10-18 14:00",
-    startedAt: "2024-10-18 14:00",
-  },
-  {
-    id: "4",
-    name: "Reorder Reminder - Cashews",
-    status: "scheduled",
-    type: "AUTOMATED",
-    template: "Reorder Reminder",
-    totalRecipients: 280,
-    sent: 0,
-    delivered: 0,
-    failed: 0,
-    pending: 280,
-    conversions: 0,
-    revenue: 0,
-    scheduledAt: "2024-10-22 11:00",
-    startedAt: null,
-  },
-  {
-    id: "5",
-    name: "Payment Reminder Q4",
-    status: "paused",
-    type: "BULK",
-    template: "Payment Reminder",
-    totalRecipients: 150,
-    sent: 75,
-    delivered: 72,
-    failed: 3,
-    pending: 75,
-    conversions: 45,
-    revenue: 28000,
-    scheduledAt: "2024-10-17 08:00",
-    startedAt: "2024-10-17 08:00",
-  },
-];
 
 function getStatusBadge(status: string) {
   switch (status) {
@@ -122,10 +40,67 @@ function getStatusBadge(status: string) {
 
 export default function CampaignsPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const filteredCampaigns = campaigns.filter((c) =>
+  useEffect(() => {
+    fetch("/api/campaigns")
+      .then((res) => res.json())
+      .then((json) => setData(json))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
+
+  const campaigns: any[] = data?.campaigns || [];
+
+  if (campaigns.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Campaigns</h1>
+            <p className="text-muted-foreground">
+              Manage and monitor your WhatsApp campaigns
+            </p>
+          </div>
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            New Campaign
+          </Button>
+        </div>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="h-16 w-16 rounded-2xl bg-brand-primary/10 flex items-center justify-center mb-4">
+            <Send className="h-8 w-8 text-brand-primary" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">No campaigns yet</h3>
+          <p className="text-sm text-muted-foreground max-w-md">
+            Create your first campaign to start engaging customers via WhatsApp. Set up templates, select audiences, and track performance.
+          </p>
+          <Button className="mt-4">
+            <Plus className="h-4 w-4 mr-2" />
+            Create First Campaign
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const filteredCampaigns = campaigns.filter((c: any) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const runningCount = campaigns.filter((c: any) => c.status === "running").length;
+  const scheduledCount = campaigns.filter((c: any) => c.status === "scheduled").length;
+  const completedCount = campaigns.filter((c: any) => c.status === "completed").length;
+  const pausedCount = campaigns.filter((c: any) => c.status === "paused").length;
 
   return (
     <div className="space-y-6">
@@ -150,7 +125,7 @@ export default function CampaignsPage() {
               <Play className="h-4 w-4 text-green-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">2</p>
+              <p className="text-2xl font-bold">{runningCount}</p>
               <p className="text-xs text-muted-foreground">Running</p>
             </div>
           </div>
@@ -161,7 +136,7 @@ export default function CampaignsPage() {
               <Calendar className="h-4 w-4 text-blue-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">1</p>
+              <p className="text-2xl font-bold">{scheduledCount}</p>
               <p className="text-xs text-muted-foreground">Scheduled</p>
             </div>
           </div>
@@ -172,7 +147,7 @@ export default function CampaignsPage() {
               <CheckCircle2 className="h-4 w-4 text-brand-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">1</p>
+              <p className="text-2xl font-bold">{completedCount}</p>
               <p className="text-xs text-muted-foreground">Completed</p>
             </div>
           </div>
@@ -183,7 +158,7 @@ export default function CampaignsPage() {
               <Pause className="h-4 w-4 text-yellow-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">1</p>
+              <p className="text-2xl font-bold">{pausedCount}</p>
               <p className="text-xs text-muted-foreground">Paused</p>
             </div>
           </div>
@@ -203,7 +178,7 @@ export default function CampaignsPage() {
 
       {/* Campaign List */}
       <div className="space-y-4">
-        {filteredCampaigns.map((campaign, index) => (
+        {filteredCampaigns.map((campaign: any, index: number) => (
           <motion.div
             key={campaign.id}
             initial={{ opacity: 0, y: 10 }}
@@ -218,7 +193,7 @@ export default function CampaignsPage() {
                       <h3 className="font-semibold text-lg">{campaign.name}</h3>
                       {getStatusBadge(campaign.status)}
                       <Badge variant="outline" className="text-xs">
-                        {campaign.type.replace("_", " ")}
+                        {(campaign.type || "").replace("_", " ")}
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
@@ -255,7 +230,7 @@ export default function CampaignsPage() {
                     <div
                       className="h-full gradient-primary rounded-full transition-all"
                       style={{
-                        width: `${(campaign.sent / campaign.totalRecipients) * 100}%`,
+                        width: `${campaign.totalRecipients > 0 ? (campaign.sent / campaign.totalRecipients) * 100 : 0}%`,
                       }}
                     />
                   </div>
@@ -300,7 +275,7 @@ export default function CampaignsPage() {
                   </div>
                   <div className="text-center">
                     <p className="text-sm font-bold text-brand-primary">
-                      {campaign.conversions > 0
+                      {campaign.conversions > 0 && campaign.delivered > 0
                         ? `${((campaign.conversions / campaign.delivered) * 100).toFixed(1)}%`
                         : "—"}
                     </p>
