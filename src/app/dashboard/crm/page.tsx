@@ -47,8 +47,8 @@ export default function CRMPage() {
     );
   }
 
-  const customers: any[] = data?.customers || [];
-  const stats = data?.stats || {};
+  const customers: any[] = data?.data?.customers || [];
+  const segments = data?.data?.segments || {};
 
   const filtered = customers.filter((c: any) => {
     const matchesSearch = (c.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -87,12 +87,12 @@ export default function CRMPage() {
       </div>
 
       {/* Segment Stats */}
-      <div className="grid gap-4 md:grid-cols-5">
-        <StatCard title="New" value={stats.newCount?.toString() || "0"} icon={User} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30" delay={0} />
-        <StatCard title="Active" value={stats.activeCount?.toString() || "0"} icon={TrendingUp} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30" delay={0.1} />
-        <StatCard title="VIP" value={stats.vipCount?.toString() || "0"} icon={Star} iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30" delay={0.2} />
-        <StatCard title="At Risk" value={stats.atRiskCount?.toString() || "0"} icon={AlertTriangle} iconColor="bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30" delay={0.3} />
-        <StatCard title="Lost" value={stats.lostCount?.toString() || "0"} icon={Heart} iconColor="bg-red-100 text-red-600 dark:bg-red-900/30" delay={0.4} />
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
+        <StatCard title="New" value={String(segments.new || 0)} icon={User} iconColor="bg-blue-100 text-blue-600 dark:bg-blue-900/30" delay={0} />
+        <StatCard title="Active" value={String(segments.active || 0)} icon={TrendingUp} iconColor="bg-green-100 text-green-600 dark:bg-green-900/30" delay={0.1} />
+        <StatCard title="VIP" value={String(segments.vip || 0)} icon={Star} iconColor="bg-purple-100 text-purple-600 dark:bg-purple-900/30" delay={0.2} />
+        <StatCard title="At Risk" value={String(segments.at_risk || 0)} icon={AlertTriangle} iconColor="bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30" delay={0.3} />
+        <StatCard title="Lost" value={String(segments.lost || 0)} icon={Heart} iconColor="bg-red-100 text-red-600 dark:bg-red-900/30" delay={0.4} />
       </div>
 
       {/* Search + Filter */}
