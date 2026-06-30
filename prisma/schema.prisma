@@ -400,3 +400,185 @@ model DailyAnalytics {
 
   @@map("daily_analytics")
 }
+
+
+// ==================== AUTOMATION ENGINE ====================
+
+enum AutomationTriggerType {
+  BUY_NOW_DROP
+  CART_ABANDONED
+  COD_ORDER_CREATED
+  PREPAID_OFFER
+  ORDER_CONFIRMED
+  ORDER_PACKED
+  ORDER_SHIPPED
+  ORDER_OUT_FOR_DELIVERY
+  ORDER_DELIVERED
+  NDR_RAISED
+  DELIVERY_FOLLOWUP
+  REPEAT_PURCHASE
+  UPSELL
+  CUSTOMER_MESSAGE
+  PAYMENT_RECEIVED
+}
+
+enum WorkflowStatusEnum {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum ScheduledMessageStatus {
+  SCHEDULED
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  CANCELLED
+}
+
+model AutomationEventLog {
+  id            String               @id @default(cuid())
+  trigger       AutomationTriggerType
+  customerId    String?
+  customerPhone String
+  customerName  String?
+  orderId       String?
+  productName   String?
+  metadata      Json?
+  status        String               @default("pending") // pending, processing, processed, failed
+  processedAt   DateTime?
+  createdAt     DateTime             @default(now())
+
+  @@index([trigger])
+  @@index([customerPhone])
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("automation_events")
+}
+
+model WorkflowInstanceLog {
+  id            String             @id @default(cuid())
+  workflowType  AutomationTriggerType
+  customerId    String?
+  customerPhone String
+  orderId       String?
+  status        WorkflowStatusEnum @default(ACTIVE)
+  currentStep   Int                @default(0)
+  totalSteps    Int                @default(0)
+  metadata      Json?
+  cancelReason  String?
+  startedAt     DateTime           @default(now())
+  completedAt   DateTime?
+  cancelledAt   DateTime?
+
+  scheduledMessages ScheduledMessageLog[]
+
+  @@index([customerPhone])
+  @@index([orderId])
+  @@index([status])
+  @@index([workflowType])
+  @@map("workflow_instances")
+}
+
+model ScheduledMessageLog {
+  id                  String                @id @default(cuid())
+  workflowInstanceId  String
+  customerPhone       String
+  customerName        String?
+  content             String
+  scheduledAt         DateTime
+  sentAt              DateTime?
+  status              ScheduledMessageStatus @default(SCHEDULED)
+  retryCount          Int                   @default(0)
+  maxRetries          Int                   @default(3)
+  errorMessage        String?
+  metadata            Json?
+  createdAt           DateTime              @default(now())
+
+  workflowInstance    WorkflowInstanceLog   @relation(fields: [workflowInstanceId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([customerPhone])
+  @@map("scheduled_messages")
+}
+
+model NDREventLog {
+  id             String   @id @default(cuid())
+  orderId        String
+  awb            String
+  reason         String
+  attemptNumber  Int      @default(1)
+  courierPartner String?
+  customerPhone  String
+  customerName   String?
+  customerReply  String?  // YES, CALL ME, CANCEL
+  replyAt        DateTime?
+  reattemptCreated Boolean @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([orderId])
+  @@index([customerPhone])
+  @@map("ndr_events")
+}
+
+model CustomerConversation {
+  id            String   @id @default(cuid())
+  customerPhone String
+  customerName  String?
+  direction     String   // inbound, outbound
+  messageType   String   @default("text") // text, button_reply, image
+  content       String
+  intent        String?  // price, delivery, stock, support, confirmation
+  workflowId    String?
+  sentBy        String?  // system, employee_id
+  whatsappMsgId String?
+  status        String   @default("sent")
+  createdAt     DateTime @default(now())
+
+  @@index([customerPhone])
+  @@index([createdAt])
+  @@index([intent])
+  @@map("customer_conversations")
+}
+
+model AutomationRule {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String   // JSON encoded
+  description String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@map("automation_rules")
+}
+
+model RecoveryMetric {
+  id                    String   @id @default(cuid())
+  date                  DateTime @unique
+  buyNowDrops           Int      @default(0)
+  buyNowRecovered       Int      @default(0)
+  cartAbandoned         Int      @default(0)
+  cartRecovered         Int      @default(0)
+  codOrders             Int      @default(0)
+  codConfirmed          Int      @default(0)
+  prepaidOffered        Int      @default(0)
+  prepaidConverted      Int      @default(0)
+  ndrRaised             Int      @default(0)
+  ndrRecovered          Int      @default(0)
+  rtoCount              Int      @default(0)
+  delivered             Int      @default(0)
+  revenueRecovered      Float    @default(0)
+  whatsappSent          Int      @default(0)
+  whatsappDelivered     Int      @default(0)
+  whatsappRead          Int      @default(0)
+  whatsappReplied       Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("recovery_metrics")
+}

@@ -32,6 +32,7 @@ const navigation = [
   { name: "Templates", href: "/dashboard/templates", icon: FileText },
   { name: "Template Builder", href: "/dashboard/template-builder", icon: FileText },
   { name: "Workflows", href: "/dashboard/workflows", icon: ArrowLeftRight },
+  { name: "Recovery", href: "/dashboard/recovery", icon: ArrowLeftRight },
   { name: "Upload Data", href: "/dashboard/upload", icon: ArrowLeftRight },
   { name: "COD Conversion", href: "/dashboard/cod-conversion", icon: ArrowLeftRight },
   { name: "Payments", href: "/dashboard/payments", icon: CreditCard },
