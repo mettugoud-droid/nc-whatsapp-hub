@@ -41,6 +41,7 @@ const navigation = [
   { name: "AI Copilot", href: "/dashboard/ai-copilot", icon: PieChart },
   { name: "Reports", href: "/dashboard/reports", icon: BarChart3 },
   { name: "Analytics", href: "/dashboard/analytics", icon: PieChart },
+  { name: "Site Visitors", href: "/dashboard/site-analytics", icon: PieChart },
   { name: "Infographics", href: "/dashboard/infographics", icon: Image },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
