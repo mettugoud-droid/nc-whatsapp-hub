@@ -27,6 +27,9 @@ const ANALYTICS_CONFIG = {
 export default function SiteAnalyticsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [realtime, setRealtime] = useState<any>(null);
+  const [realtimeError, setRealtimeError] = useState("");
+  const [loadingRealtime, setLoadingRealtime] = useState(true);
 
   // Save credentials to DB on first load
   useEffect(() => {
@@ -35,7 +38,23 @@ export default function SiteAnalyticsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ credentials: ANALYTICS_CONFIG }),
     }).catch(() => {});
+
+    // Fetch realtime data
+    fetchRealtime();
+    const interval = setInterval(fetchRealtime, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
   }, []);
+
+  const fetchRealtime = () => {
+    fetch("/api/marketing/realtime")
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) { setRealtime(data.data); setRealtimeError(""); }
+        else setRealtimeError(data.error || "");
+      })
+      .catch(() => setRealtimeError("Failed to fetch"))
+      .finally(() => setLoadingRealtime(false));
+  };
 
   return (
     <div className="space-y-6">
@@ -136,19 +155,40 @@ export default function SiteAnalyticsPage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-4 mb-6">
-            <RealtimeCard icon={Users} label="Active Users Now" value="—" note="Connect GA4 API" />
-            <RealtimeCard icon={Eye} label="Page Views (Today)" value="—" note="Connect GA4 API" />
-            <RealtimeCard icon={ShoppingCart} label="Add to Carts (Today)" value="—" note="Connect GA4 API" />
-            <RealtimeCard icon={Zap} label="Purchases (Today)" value="—" note="Connect GA4 API" />
+            <RealtimeCard icon={Users} label="Active Users Now" value={realtime?.activeUsers?.toString() || "—"} note={realtime ? "Live" : "Setup needed"} />
+            <RealtimeCard icon={Eye} label="Page Views (30min)" value={realtime?.pageViews?.toString() || "—"} note={realtime ? "Live" : "Setup needed"} />
+            <RealtimeCard icon={ShoppingCart} label="Events (30min)" value={realtime?.events?.toString() || "—"} note={realtime ? "Live" : "Setup needed"} />
+            <RealtimeCard icon={Zap} label="Conversions (30min)" value={realtime?.conversions?.toString() || "—"} note={realtime ? "Live" : "Setup needed"} />
           </div>
 
-          <div className="p-6 border-2 border-dashed rounded-xl text-center">
+          {realtime?.topPages && realtime.topPages.length > 0 && (
+            <div className="mb-4">
+              <p className="text-sm font-medium mb-2">Top Pages (Real-time)</p>
+              <div className="space-y-1">
+                {realtime.topPages.map((page: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between p-2 rounded-md bg-accent/30">
+                    <span className="text-xs truncate">{page.page}</span>
+                    <span className="text-xs font-bold">{page.users} users</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {realtimeError && (
+            <div className="p-6 border-2 border-dashed rounded-xl text-center">
             <Globe className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-            <h3 className="font-semibold mb-1">Live Visitor Dashboard</h3>
+            <h3 className="font-semibold mb-1">Enable Real-time Data</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              To see real-time visitor data here, enable the GA4 Data API.
-              Your GA4 Measurement Protocol API secret is already configured.
+              To see live visitor data here, follow these steps:
             </p>
+            <ol className="text-xs text-left max-w-md mx-auto space-y-1 text-muted-foreground mb-4">
+              <li>1. Go to <a href="https://console.cloud.google.com" target="_blank" className="text-brand-primary underline">Google Cloud Console</a></li>
+              <li>2. Enable "Google Analytics Data API"</li>
+              <li>3. Create a Service Account → Download JSON key</li>
+              <li>4. In GA4 → Admin → Property Access → Add the service account email as "Viewer"</li>
+              <li>5. Go to Settings in this app → save the JSON key</li>
+            </ol>
             <div className="flex justify-center gap-3">
               <a href="https://analytics.google.com/analytics/web/#/realtime" target="_blank" rel="noopener noreferrer">
                 <Button size="sm"><ExternalLink className="h-3 w-3 mr-2" />View in GA4 (Real-time)</Button>
@@ -158,6 +198,7 @@ export default function SiteAnalyticsPage() {
               </a>
             </div>
           </div>
+          )}
         </CardContent>
       </Card>
 
