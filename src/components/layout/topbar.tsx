@@ -16,7 +16,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-export function Topbar() {
+export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { theme, setTheme } = useTheme();
   const [showProfile, setShowProfile] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -29,14 +29,19 @@ export function Topbar() {
 
   return (
     <header className="sticky top-0 z-30 h-16 border-b bg-card/80 backdrop-blur-md">
-      <div className="flex h-full items-center justify-between px-6">
-        {/* Search */}
-        <div className="relative w-full max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search contacts, campaigns, templates..."
-            className="pl-10 bg-accent/50 border-0 focus-visible:ring-brand-primary/30"
-          />
+      <div className="flex h-full items-center justify-between px-3 sm:px-6">
+        {/* Mobile menu + Search */}
+        <div className="flex items-center gap-2 flex-1">
+          <button onClick={onMenuClick} className="p-2 rounded-md hover:bg-accent lg:hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <div className="relative w-full max-w-md hidden sm:block">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search..."
+              className="pl-10 bg-accent/50 border-0 focus-visible:ring-brand-primary/30"
+            />
+          </div>
         </div>
 
         {/* Actions */}

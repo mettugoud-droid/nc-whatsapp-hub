@@ -1,25 +1,18 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard,
-  MessageSquare,
-  Users,
-  FileText,
-  BarChart3,
-  PieChart,
-  Settings,
-  CreditCard,
-  ArrowLeftRight,
-  Image,
-  ChevronLeft,
-  Leaf,
-  Send,
+  LayoutDashboard, MessageSquare, Users, FileText, BarChart3,
+  PieChart, Settings, CreditCard, ArrowLeftRight, Image,
+  Leaf, Send, X,
 } from "lucide-react";
+
+interface SidebarProps {
+  open?: boolean;
+  onClose?: () => void;
+}
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -46,16 +39,16 @@ const navigation = [
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
-export function Sidebar() {
+export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: collapsed ? 72 : 260 }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
-      className="fixed left-0 top-0 z-40 h-screen border-r bg-card flex flex-col"
+    <aside
+      className={cn(
+        "fixed left-0 top-0 z-40 h-screen w-[260px] border-r bg-card flex flex-col transition-transform duration-300",
+        "lg:translate-x-0",
+        open ? "translate-x-0" : "-translate-x-full"
+      )}
     >
       {/* Logo */}
       <div className="flex h-16 items-center justify-between px-4 border-b">
@@ -63,29 +56,12 @@ export function Sidebar() {
           <div className="flex h-9 w-9 items-center justify-center rounded-lg gradient-primary">
             <Leaf className="h-5 w-5 text-white" />
           </div>
-          <AnimatePresence>
-            {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="font-bold text-brand-primary whitespace-nowrap"
-              >
-                Nature&apos;s Crates
-              </motion.span>
-            )}
-          </AnimatePresence>
+          <span className="font-bold text-brand-primary whitespace-nowrap">
+            Nature&apos;s Crates
+          </span>
         </Link>
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-1.5 rounded-md hover:bg-accent transition-colors"
-        >
-          <ChevronLeft
-            className={cn(
-              "h-4 w-4 transition-transform duration-300",
-              collapsed && "rotate-180"
-            )}
-          />
+        <button onClick={onClose} className="p-1.5 rounded-md hover:bg-accent lg:hidden">
+          <X className="h-4 w-4" />
         </button>
       </div>
 
@@ -100,6 +76,7 @@ export function Sidebar() {
               <li key={item.name}>
                 <Link
                   href={item.href}
+                  onClick={onClose}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                     isActive
@@ -107,19 +84,8 @@ export function Sidebar() {
                       : "text-muted-foreground hover:bg-accent hover:text-foreground"
                   )}
                 >
-                  <item.icon className={cn("h-5 w-5 flex-shrink-0")} />
-                  <AnimatePresence>
-                    {!collapsed && (
-                      <motion.span
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="whitespace-nowrap"
-                      >
-                        {item.name}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
+                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  <span className="whitespace-nowrap">{item.name}</span>
                 </Link>
               </li>
             );
@@ -129,20 +95,11 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="border-t p-4">
-        <AnimatePresence>
-          {!collapsed && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-xs text-muted-foreground text-center"
-            >
-              <p>WhatsApp Hub v1.0</p>
-              <p className="text-brand-primary font-medium">Nature&apos;s Crates</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <div className="text-xs text-muted-foreground text-center">
+          <p>WhatsApp Hub v2.0</p>
+          <p className="text-brand-primary font-medium">Nature&apos;s Crates</p>
+        </div>
       </div>
-    </motion.aside>
+    </aside>
   );
 }
