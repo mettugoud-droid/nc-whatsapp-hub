@@ -18,6 +18,7 @@ const ANALYTICS_CONFIG = {
   fbBusinessId: "1525471298394641",
   gaId: "395216985",
   ga4Id: "G-WGQRPCPYZK",
+  ga4PropertyId: "538202474",
   ga4Secret: "RumvJj6JQdCYn6lVolsx5A",
   googleTagId: "AW-18171486303",
   merchantId: "5789684067",

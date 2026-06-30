@@ -15,7 +15,7 @@ export async function GET() {
     const settings = await prisma.setting.findMany({ where: { category: "marketing" } });
     const getVal = (key: string) => settings.find(s => s.key === key)?.value || "";
 
-    const ga4PropertyId = getVal("marketing_ga4PropertyId") || getVal("marketing_gaId");
+    const ga4PropertyId = getVal("marketing_ga4PropertyId") || "538202474";
     const serviceAccountJson = getVal("marketing_ga4ServiceAccount");
 
     if (!ga4PropertyId) {
