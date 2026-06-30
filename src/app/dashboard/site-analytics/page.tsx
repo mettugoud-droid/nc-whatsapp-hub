@@ -6,258 +6,215 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Users, Eye, MousePointer, ShoppingCart, TrendingUp,
-  Globe, Smartphone, Monitor, ArrowUpRight, ExternalLink,
-  BarChart3, Target, Zap, Loader2, CheckCircle2,
+  Users, Eye, ShoppingCart, TrendingUp, Globe, ExternalLink,
+  BarChart3, Target, Zap, Loader2, RefreshCw,
 } from "lucide-react";
-
-// Marketing config (from Shopdeck credentials)
-const ANALYTICS_CONFIG = {
-  fbPixelId: "1293510849364763",
-  fbPageId: "345163898686416",
-  fbBusinessId: "1525471298394641",
-  gaId: "395216985",
-  ga4Id: "G-WGQRPCPYZK",
-  ga4PropertyId: "538202474",
-  ga4Secret: "RumvJj6JQdCYn6lVolsx5A",
-  googleTagId: "AW-18171486303",
-  merchantId: "5789684067",
-  gtmCode: "GTM-KHVNXRKL",
-};
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell,
+} from "recharts";
 
 export default function SiteAnalyticsPage() {
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [realtime, setRealtime] = useState<any>(null);
-  const [realtimeError, setRealtimeError] = useState("");
-  const [loadingRealtime, setLoadingRealtime] = useState(true);
-
-  // Save credentials to DB on first load
-  useEffect(() => {
-    fetch("/api/marketing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ credentials: ANALYTICS_CONFIG }),
-    }).catch(() => {});
-
-    // Fetch realtime data
-    fetchRealtime();
-    const interval = setInterval(fetchRealtime, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState("");
 
   const fetchRealtime = () => {
     fetch("/api/marketing/realtime")
       .then(r => r.json())
       .then(data => {
-        if (data.success) { setRealtime(data.data); setRealtimeError(""); }
-        else setRealtimeError(data.error || "");
+        if (data.success) {
+          setRealtime(data.data);
+          setLastUpdated(new Date().toLocaleTimeString());
+        }
       })
-      .catch(() => setRealtimeError("Failed to fetch"))
-      .finally(() => setLoadingRealtime(false));
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
+
+  useEffect(() => {
+    fetchRealtime();
+    const interval = setInterval(fetchRealtime, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-brand-primary" /></div>;
+  }
+
+  // Prepare chart data from top pages
+  const pageChartData = (realtime?.topPages || [])
+    .filter((p: any) => p.page !== "Unknown" && p.page !== "(other)")
+    .map((p: any) => ({
+      name: p.page.length > 30 ? p.page.substring(0, 30) + "..." : p.page,
+      fullName: p.page,
+      users: p.users,
+    }))
+    .slice(0, 8);
+
+  const totalVisitors = (realtime?.topPages || []).reduce((sum: number, p: any) => sum + p.users, 0);
+
+  const PIE_COLORS = ["#608748", "#DFAD35", "#3B82F6", "#8B5CF6", "#EF4444", "#06B6D4", "#F97316", "#EC4899"];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Site Analytics</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse" />
+            Live Site Visitors
+          </h1>
           <p className="text-muted-foreground">
-            Live visitor data from Facebook Pixel & Google Analytics
+            Real-time data from naturescrates.com • Last updated: {lastUpdated}
           </p>
         </div>
-        <div className="flex gap-2">
-          <a href={`https://analytics.google.com/analytics/web/#/p${ANALYTICS_CONFIG.ga4Id.replace("G-", "")}/reports`} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm">
-              <ExternalLink className="h-3 w-3 mr-2" /> GA4 Dashboard
-            </Button>
-          </a>
-          <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm">
-              <ExternalLink className="h-3 w-3 mr-2" /> FB Events Manager
-            </Button>
-          </a>
-        </div>
+        <Button variant="outline" onClick={fetchRealtime}>
+          <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+        </Button>
       </div>
+
+      {/* Live Stats */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <LiveCard icon={Users} label="Total Visitors (30min)" value={totalVisitors} color="bg-brand-primary/10 text-brand-primary" trend="+live" />
+        <LiveCard icon={Eye} label="Page Views" value={realtime?.pageViews || 0} color="bg-blue-100 text-blue-600" trend="30min" />
+        <LiveCard icon={Zap} label="Events" value={realtime?.events || 0} color="bg-purple-100 text-purple-600" trend="30min" />
+        <LiveCard icon={ShoppingCart} label="Conversions" value={realtime?.conversions || 0} color="bg-green-100 text-green-600" trend="30min" />
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Bar Chart - Top Pages */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Top Pages by Visitors</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {pageChartData.length > 0 ? (
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={pageChartData} layout="vertical" margin={{ left: 10, right: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis type="number" />
+                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} />
+                    <Tooltip
+                      formatter={(value: number) => [`${value} visitors`, ""]}
+                      labelFormatter={(label) => pageChartData.find((p: any) => p.name === label)?.fullName || label}
+                      contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))" }}
+                    />
+                    <Bar dataKey="users" fill="#608748" radius={[0, 6, 6, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-12">No visitor data available</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Pie Chart - Visitor Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Visitor Distribution by Page</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {pageChartData.length > 0 ? (
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pageChartData} cx="50%" cy="50%" outerRadius={100} innerRadius={50} paddingAngle={3} dataKey="users" label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}>
+                      {pageChartData.map((_: any, i: number) => (
+                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => [`${value} visitors`, ""]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-12">No data</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top Pages Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Globe className="h-4 w-4" /> Pages Being Viewed Right Now
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(realtime?.topPages || []).length > 0 ? (
+            <div className="space-y-2">
+              {(realtime?.topPages || []).map((page: any, i: number) => (
+                <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                  className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/30 transition-colors">
+                  <div className="h-8 w-8 rounded-lg flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}>
+                    {page.users}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {page.page === "Unknown" ? "Homepage / Direct" : page.page === "(other)" ? "Other Pages" :
+                        page.page.replace(/Natures crates /g, "").replace(/ Price in India.*$/g, "").replace(/ \| .*$/g, "")}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">{page.page}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-brand-primary">{page.users}</p>
+                    <p className="text-[10px] text-muted-foreground">visitors</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-8">No active visitors right now</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Connected Services */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-blue-200 dark:border-blue-800">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <span className="text-lg font-bold text-blue-600">f</span>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Facebook Pixel</p>
-                <p className="text-xs text-muted-foreground font-mono">{ANALYTICS_CONFIG.fbPixelId}</p>
-              </div>
-              <Badge variant="success" className="text-[10px]">Connected</Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-orange-200 dark:border-orange-800">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-orange-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Google Analytics 4</p>
-                <p className="text-xs text-muted-foreground font-mono">{ANALYTICS_CONFIG.ga4Id}</p>
-              </div>
-              <Badge variant="success" className="text-[10px]">Connected</Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-green-200 dark:border-green-800">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <Target className="h-5 w-5 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Google Ads</p>
-                <p className="text-xs text-muted-foreground font-mono">{ANALYTICS_CONFIG.googleTagId}</p>
-              </div>
-              <Badge variant="success" className="text-[10px]">Connected</Badge>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tracking Events */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Configured Tracking Events</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="text-base">Connected Tracking</CardTitle></CardHeader>
         <CardContent>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <EventCard icon={Eye} label="Page View" tag="GTM" id={ANALYTICS_CONFIG.gtmCode} color="bg-blue-100 text-blue-600" />
-            <EventCard icon={ShoppingCart} label="Add to Cart" tag="GA4 + FB" id="A2C Event" color="bg-green-100 text-green-600" />
-            <EventCard icon={MousePointer} label="View Item" tag="Google Ads" id={`Label: 4sEqCOXI77Ac...`} color="bg-purple-100 text-purple-600" />
-            <EventCard icon={Zap} label="Purchase" tag="Google Ads" id={`Label: rEGlCN_I77Ac...`} color="bg-orange-100 text-orange-600" />
+          <div className="grid gap-3 md:grid-cols-3">
+            <ServiceBadge name="Facebook Pixel" id="1293510849364763" color="bg-blue-100 text-blue-700" />
+            <ServiceBadge name="Google Analytics 4" id="G-WGQRPCPYZK" color="bg-orange-100 text-orange-700" />
+            <ServiceBadge name="Google Ads" id="AW-18171486303" color="bg-green-100 text-green-700" />
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
 
-      {/* Live Metrics Embed (GA4 Realtime) */}
+function LiveCard({ icon: Icon, label, value, color, trend }: { icon: any; label: string; value: number; color: string; trend: string }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
       <Card>
-        <CardHeader>
+        <CardContent className="p-5">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-              Real-Time Analytics
-            </CardTitle>
-            <Badge variant="outline" className="text-xs">Requires GA4 Data API</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-4 mb-6">
-            <RealtimeCard icon={Users} label="Active Users Now" value={realtime?.activeUsers?.toString() || "—"} note={realtime ? "Live" : "Setup needed"} />
-            <RealtimeCard icon={Eye} label="Page Views (30min)" value={realtime?.pageViews?.toString() || "—"} note={realtime ? "Live" : "Setup needed"} />
-            <RealtimeCard icon={ShoppingCart} label="Events (30min)" value={realtime?.events?.toString() || "—"} note={realtime ? "Live" : "Setup needed"} />
-            <RealtimeCard icon={Zap} label="Conversions (30min)" value={realtime?.conversions?.toString() || "—"} note={realtime ? "Live" : "Setup needed"} />
-          </div>
-
-          {realtime?.topPages && realtime.topPages.length > 0 && (
-            <div className="mb-4">
-              <p className="text-sm font-medium mb-2">Top Pages (Real-time)</p>
-              <div className="space-y-1">
-                {realtime.topPages.map((page: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between p-2 rounded-md bg-accent/30">
-                    <span className="text-xs truncate">{page.page}</span>
-                    <span className="text-xs font-bold">{page.users} users</span>
-                  </div>
-                ))}
-              </div>
+            <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${color}`}>
+              <Icon className="h-5 w-5" />
             </div>
-          )}
-
-          {realtimeError && (
-            <div className="p-6 border-2 border-dashed rounded-xl text-center">
-            <Globe className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-            <h3 className="font-semibold mb-1">Enable Real-time Data</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              To see live visitor data here, follow these steps:
-            </p>
-            <ol className="text-xs text-left max-w-md mx-auto space-y-1 text-muted-foreground mb-4">
-              <li>1. Go to <a href="https://console.cloud.google.com" target="_blank" className="text-brand-primary underline">Google Cloud Console</a></li>
-              <li>2. Enable "Google Analytics Data API"</li>
-              <li>3. Create a Service Account → Download JSON key</li>
-              <li>4. In GA4 → Admin → Property Access → Add the service account email as "Viewer"</li>
-              <li>5. Go to Settings in this app → save the JSON key</li>
-            </ol>
-            <div className="flex justify-center gap-3">
-              <a href="https://analytics.google.com/analytics/web/#/realtime" target="_blank" rel="noopener noreferrer">
-                <Button size="sm"><ExternalLink className="h-3 w-3 mr-2" />View in GA4 (Real-time)</Button>
-              </a>
-              <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer">
-                <Button size="sm" variant="outline"><ExternalLink className="h-3 w-3 mr-2" />FB Events Manager</Button>
-              </a>
-            </div>
+            <Badge variant="outline" className="text-[10px]">{trend}</Badge>
           </div>
-          )}
+          <p className="text-3xl font-bold mt-3">{value}</p>
+          <p className="text-xs text-muted-foreground">{label}</p>
         </CardContent>
       </Card>
-
-      {/* All Credentials Reference */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Marketing Credentials (Stored)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2 md:grid-cols-2">
-            <CredRow label="FB Pixel ID" value={ANALYTICS_CONFIG.fbPixelId} />
-            <CredRow label="FB Page ID" value={ANALYTICS_CONFIG.fbPageId} />
-            <CredRow label="FB Business Manager ID" value={ANALYTICS_CONFIG.fbBusinessId} />
-            <CredRow label="Google Analytics ID" value={ANALYTICS_CONFIG.gaId} />
-            <CredRow label="GA4 ID" value={ANALYTICS_CONFIG.ga4Id} />
-            <CredRow label="Google Tag ID (Ads)" value={ANALYTICS_CONFIG.googleTagId} />
-            <CredRow label="Google Merchant ID" value={ANALYTICS_CONFIG.merchantId} />
-            <CredRow label="GTM Code" value={ANALYTICS_CONFIG.gtmCode} />
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    </motion.div>
   );
 }
 
-function EventCard({ icon: Icon, label, tag, id, color }: { icon: any; label: string; tag: string; id: string; color: string }) {
+function ServiceBadge({ name, id, color }: { name: string; id: string; color: string }) {
   return (
-    <div className="p-3 rounded-lg border">
-      <div className="flex items-center gap-2 mb-2">
-        <div className={`h-7 w-7 rounded-md flex items-center justify-center ${color}`}>
-          <Icon className="h-3.5 w-3.5" />
-        </div>
-        <div>
-          <p className="text-sm font-medium">{label}</p>
-          <Badge variant="outline" className="text-[9px]">{tag}</Badge>
-        </div>
+    <div className={`p-3 rounded-lg ${color} flex items-center justify-between`}>
+      <div>
+        <p className="text-xs font-bold">{name}</p>
+        <p className="text-[10px] font-mono opacity-75">{id}</p>
       </div>
-      <p className="text-[10px] text-muted-foreground font-mono truncate">{id}</p>
-    </div>
-  );
-}
-
-function RealtimeCard({ icon: Icon, label, value, note }: { icon: any; label: string; value: string; note: string }) {
-  return (
-    <div className="text-center p-4 rounded-lg bg-accent/30">
-      <Icon className="h-5 w-5 mx-auto text-muted-foreground mb-2" />
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-[10px] text-muted-foreground mt-1">{note}</p>
-    </div>
-  );
-}
-
-function CredRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between p-2 rounded-md bg-accent/30">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-xs font-mono font-medium">{value}</span>
+      <Badge variant="success" className="text-[9px]">Live</Badge>
     </div>
   );
 }
