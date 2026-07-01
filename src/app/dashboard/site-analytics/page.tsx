@@ -34,7 +34,7 @@ export default function SiteAnalyticsPage() {
 
   useEffect(() => {
     fetchRealtime();
-    const interval = setInterval(fetchRealtime, 30000);
+    const interval = setInterval(fetchRealtime, 10000); // Refresh every 10 seconds
     return () => clearInterval(interval);
   }, []);
 

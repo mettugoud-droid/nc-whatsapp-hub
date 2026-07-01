@@ -42,13 +42,18 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/dashboard/stats")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) setStats(data.data);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    const fetchStats = () => {
+      fetch("/api/dashboard/stats")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) setStats(data.data);
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 10000); // Refresh every 10 seconds
+    return () => clearInterval(interval);
   }, []);
 
   const s = stats;
